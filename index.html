@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ABOC Live Clock</title>
+  <style>
+    :root { --bg:#0b1020; --fg:#e7ecff; --muted:#9aa3c7; --card:#11183a; }
+    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif; background: var(--bg); color: var(--fg); }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1 { margin: 0 0 12px; font-size: 28px; font-weight: 700; letter-spacing: .3px; }
+    .desc { color: var(--muted); margin-bottom: 24px; }
+    .card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,.25); }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .big { font-size: clamp(28px, 5vw, 48px); font-weight: 800; letter-spacing: .5px; }
+    .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .12em; margin-bottom: 6px; }
+    .row { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    .muted { color: var(--muted); }
+    .cfg { margin-top: 18px; font-size: 12px; color: var(--muted); }
+    .foot { margin-top: 28px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>ABOC Live Clock</h1>
+    <div class="desc">Live conversion of real time to ABOC time
+      (<strong>2 IRL hours = 1 ABOC day</strong>, <strong>1 IRL month = 1 ABOC year</strong>).
+    </div>
+
+    <div class="card grid">
+      <div>
+        <div class="label">ABOC Date &amp; Time</div>
+        <div id="abocDate" class="big mono">Loading…</div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Now (IRL)</div>
+          <div id="irlNow" class="mono"></div>
+        </div>
+        <div>
+          <div class="label">Elapsed (IRL)</div>
+          <div id="irlElapsed" class="mono"></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label">Epoch (IRL → ABOC)</div>
+          <div id="epochInfo" class="mono"></div>
+        </div>
+        <div>
+          <div class="label">Scale</div>
+          <div class="mono">2h IRL = 1 day ABOC • 30 IRL days = 1 year ABOC (360‑day year)</div>
+        </div>
+      </div>
+
+      <div class="cfg">
+        Tip: change the configuration inside the HTML file (look for <span class="mono">// --- CONFIG ---</span>) to set your starting
+        IRL moment and matching ABOC date/time.
+      </div>
+    </div>
+
+    <div class="foot">
+      ABOC day length = 24 ABOC hours ⇒ 1 ABOC hour = 5 IRL minutes; 1 ABOC second ≈ 0.0833 IRL seconds.
+    </div>
+  </div>
+
+  <script>
+    // --- CONFIG -----------------------------------------------------------------
+    // IRL timestamp (UTC recommended) that equals the ABOC epoch below:
+    const IRL_EPOCH_ISO = '2025-08-01T00:00:00Z'; // <-- set this
+
+    // ABOC date-time that matches IRL_EPOCH_ISO:
+    const ABOC_EPOCH = {
+      year: 383,  // <-- set your ABOC year
+      month: 1,   // 1..12
+      day: 1,     // 1..30
+      hour: 0, minute: 0, second: 0
+    };
+
+    // Scaling (your rules):
+    const IRL_HOURS_PER_ABOC_DAY = 2;   // 2 IRL hours = 1 ABOC day
+    const IRL_DAYS_PER_ABOC_YEAR = 30;  // 30 IRL days = 1 ABOC year
+
+    // Calendar assumptions for ABOC:
+    const ABOC_MONTHS_PER_YEAR = 12;
+    const ABOC_DAYS_PER_YEAR = Math.round((IRL_DAYS_PER_ABOC_YEAR * 24) / IRL_HOURS_PER_ABOC_DAY); // 360
+    const ABOC_DAYS_PER_MONTH = ABOC_DAYS_PER_YEAR / ABOC_MONTHS_PER_YEAR; // 30
+    const ABOC_HOURS_PER_DAY = 24;
+
+    // --- END CONFIG -------------------------------------------------------------
+
+    const MS_PER_IRL_HOUR = 3600000;
+    const MS_PER_ABOC_DAY_IRL = IRL_HOURS_PER_ABOC_DAY * MS_PER_IRL_HOUR;
+    const SECS_PER_ABOC_DAY = ABOC_HOURS_PER_DAY * 3600;
+
+    const irlEpoch = new Date(IRL_EPOCH_ISO);
+
+    function abocEpochInDays() {
+      const daysFromYears = ABOC_EPOCH.year * ABOC_DAYS_PER_YEAR;
+      const daysFromMonths = (ABOC_EPOCH.month - 1) * ABOC_DAYS_PER_MONTH;
+      const daysFromDays = (ABOC_EPOCH.day - 1);
+      const secondsInDay = (ABOC_EPOCH.hour * 3600) + (ABOC_EPOCH.minute * 60) + ABOC_EPOCH.second;
+      const frac = secondsInDay / SECS_PER_ABOC_DAY;
+      return daysFromYears + daysFromMonths + daysFromDays + frac;
+    }
+
+    function abocFromTotalDays(totalDays) {
+      const year = Math.floor(totalDays / ABOC_DAYS_PER_YEAR);
+      let leftover = totalDays - (year * ABOC_DAYS_PER_YEAR);
+
+      const month = Math.floor(leftover / ABOC_DAYS_PER_MONTH);
+      leftover -= month * ABOC_DAYS_PER_MONTH;
+
+      const day = Math.floor(leftover) + 1;
+
+      const dayFrac = leftover - Math.floor(leftover);
+      const totalSeconds = dayFrac * SECS_PER_ABOC_DAY;
+
+      const hour = Math.floor(totalSeconds / 3600);
+      const minute = Math.floor((totalSeconds % 3600) / 60);
+      const second = Math.floor(totalSeconds % 60);
+
+      return { year, month: month + 1, day, hour, minute, second };
+    }
+
+    function pad(n, len=2) { return String(n).padStart(len, '0'); }
+    function fmtAboc(dt) {
+      return `${dt.year}-${pad(dt.month)}-${pad(dt.day)} ${pad(dt.hour)}:${pad(dt.minute)}:${pad(dt.second)} ABOC`;
+    }
+    function fmtIRL(dt) {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local';
+      return dt.toLocaleString(undefined, { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' }) + ` (${tz})`;
+    }
+    function fmtElapsed(ms) {
+      const s = Math.floor(ms / 1000);
+      const d = Math.floor(s / 86400);
+      const h = Math.floor((s % 86400) / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const ss = s % 60;
+      return `${d}d ${pad(h)}h:${pad(m)}m:${pad(ss)}s`;
+    }
+
+    const epochDaysBase = abocEpochInDays();
+
+    function tick() {
+      const now = new Date();
+      const elapsedMs = now - irlEpoch;
+      const abocDaysElapsed = elapsedMs / MS_PER_ABOC_DAY_IRL;
+      const totalAbocDays = epochDaysBase + abocDaysElapsed;
+
+      const aboc = abocFromTotalDays(totalAbocDays);
+
+      document.getElementById('abocDate').textContent = fmtAboc(aboc);
+      document.getElementById('irlNow').textContent = fmtIRL(now);
+      document.getElementById('irlElapsed').textContent = fmtElapsed(Math.max(0, elapsedMs));
+      document.getElementById('epochInfo').textContent =
+        `${IRL_EPOCH_ISO} → ${ABOC_EPOCH.year}-${pad(ABOC_EPOCH.month)}-${pad(ABOC_EPOCH.day)} ${pad(ABOC_EPOCH.hour)}:${pad(ABOC_EPOCH.minute)}:${pad(ABOC_EPOCH.second)} ABOC`;
+    }
+
+    tick();
+    setInterval(tick, 250);
+  </script>
+</body>
+</html>

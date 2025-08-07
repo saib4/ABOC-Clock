@@ -1,3 +1,13 @@
+Here is the **complete HTML code** that includes both:
+
+1. ✅ The **original ABOC Live Clock** at the top
+2. 🔁 The **new 2-way IRL ↔ ABOC date converter** interface at the bottom
+
+---
+
+### ✅ Copy-paste the **full code below** into your `.html` file:
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -131,7 +141,7 @@
 
     function pad(n, len=2) { return String(n).padStart(len, '0'); }
     function fmtAboc(dt) {
-      return `${dt.year}-${pad(dt.month)}-${pad(dt.day)} ABOC`;
+      return `${dt.year}-${pad(dt.month)}-${pad(dt.day)} ${pad(dt.hour)}:${pad(dt.minute)}:${pad(dt.second)} ABOC`;
     }
     function fmtIRL(dt) {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local';
@@ -189,7 +199,7 @@
       const msSinceEpoch = abocDaysSinceEpoch * MS_PER_ABOC_DAY_IRL;
       const irl = new Date(irlEpoch.getTime() + msSinceEpoch);
 
-      document.getElementById("irlOutput").textContent = irl.toLocaleDateString();
+      document.getElementById("irlOutput").textContent = fmtIRL(irl);
     }
 
     tick();
@@ -197,3 +207,8 @@
   </script>
 </body>
 </html>
+```
+
+---
+
+Let me know if you want this turned into a `.zip`, hosted live, or with dropdowns for easier use.

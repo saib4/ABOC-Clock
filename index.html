@@ -68,7 +68,7 @@
     </div>
 
     <div class="converter">
-      <h2>🧮 IRL ↔ ABOC Converter</h2>
+      <h2>🧲 IRL ↔ ABOC Converter</h2>
       <div>
         <label>Convert IRL Date to ABOC:</label>
         <input type="datetime-local" id="irlInput" />
@@ -80,7 +80,7 @@
 
       <div>
         <label>Convert ABOC Date to IRL:</label>
-        <input type="text" id="abocInput" placeholder="YYYY-MM-DD or YYYY-MM-DD HH:mm:ss" />
+        <input type="text" id="abocInput" placeholder="YYYY-MM-DD HH:mm:ss" />
         <button onclick="convertABOCtoIRL()">Convert to IRL</button>
         <div id="irlOutput" class="output"></div>
       </div>
@@ -130,11 +130,18 @@
     }
 
     function pad(n, len=2) { return String(n).padStart(len, '0'); }
+    function ordinal(n) {
+      if (n % 10 === 1 && n % 100 !== 11) return n + 'st';
+      if (n % 10 === 2 && n % 100 !== 12) return n + 'nd';
+      if (n % 10 === 3 && n % 100 !== 13) return n + 'rd';
+      return n + 'th';
+    }
     function fmtAboc(dt) {
       return `${dt.year}-${pad(dt.month)}-${pad(dt.day)} ${pad(dt.hour)}:${pad(dt.minute)}:${pad(dt.second)} ABOC`;
     }
     function fmtIRL(dt) {
-      return dt.toLocaleDateString(undefined, { year:'numeric', month:'2-digit', day:'2-digit' });
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local';
+      return dt.toLocaleString(undefined, { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' }) + ` (${tz})`;
     }
     function fmtElapsed(ms) {
       const s = Math.floor(ms / 1000);
@@ -155,7 +162,7 @@
       const aboc = abocFromTotalDays(totalAbocDays);
 
       document.getElementById('abocDate').textContent = fmtAboc(aboc);
-      document.getElementById('irlNow').textContent = now.toLocaleString();
+      document.getElementById('irlNow').textContent = fmtIRL(now);
       document.getElementById('irlElapsed').textContent = fmtElapsed(Math.max(0, elapsedMs));
       document.getElementById('epochInfo').textContent = `${IRL_EPOCH_ISO} → ${ABOC_EPOCH.year}-${pad(ABOC_EPOCH.month)}-${pad(ABOC_EPOCH.day)} ${pad(ABOC_EPOCH.hour)}:${pad(ABOC_EPOCH.minute)}:${pad(ABOC_EPOCH.second)} ABOC`;
     }
@@ -168,25 +175,18 @@
       const abocDaysElapsed = elapsedMs / MS_PER_ABOC_DAY_IRL;
       const totalAbocDays = epochDaysBase + abocDaysElapsed;
       const aboc = abocFromTotalDays(totalAbocDays);
-      document.getElementById("abocOutput").textContent = fmtAboc(aboc);
+      const formatted = `${ordinal(aboc.day)} Day of the ${ordinal(aboc.month)} Moon, ${aboc.year} AC`;
+      document.getElementById("abocOutput").textContent = formatted;
     }
 
     function convertABOCtoIRL() {
-      const input = document.getElementById("abocInput").value.trim();
-      if (!input) return;
+      const input = document.getElementById("abocInput").value;
+      const [datePart, timePart] = input.split(" ");
+      if (!datePart || !timePart) return;
 
-      const [datePart, timePart = "00:00:00"] = input.split(" ");
       const [y, m, d] = datePart.split("-").map(Number);
-      const [h = 0, min = 0, s = 0] = timePart.split(":").map(Number);
-
-      if (!y || !m || !d) return;
-
-      const abocDays =
-        y * ABOC_DAYS_PER_YEAR +
-        (m - 1) * ABOC_DAYS_PER_MONTH +
-        (d - 1) +
-        ((h * 3600 + min * 60 + s) / SECS_PER_ABOC_DAY);
-
+      const [h, min, s] = timePart.split(":").map(Number);
+      const abocDays = y * ABOC_DAYS_PER_YEAR + (m - 1) * ABOC_DAYS_PER_MONTH + (d - 1) + ((h * 3600 + min * 60 + s) / SECS_PER_ABOC_DAY);
       const abocDaysSinceEpoch = abocDays - epochDaysBase;
       const msSinceEpoch = abocDaysSinceEpoch * MS_PER_ABOC_DAY_IRL;
       const irl = new Date(irlEpoch.getTime() + msSinceEpoch);

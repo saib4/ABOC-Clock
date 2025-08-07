@@ -68,7 +68,7 @@
     </div>
 
     <div class="converter">
-      <h2>🧲 IRL ↔ ABOC Converter</h2>
+      <h2>🧮 IRL ↔ ABOC Converter</h2>
       <div>
         <label>Convert IRL Date to ABOC:</label>
         <input type="datetime-local" id="irlInput" />
@@ -80,7 +80,7 @@
 
       <div>
         <label>Convert ABOC Date to IRL:</label>
-        <input type="text" id="abocInput" placeholder="YYYY-MM-DD" />
+        <input type="text" id="abocInput" placeholder="YYYY-MM-DD HH:mm:ss" />
         <button onclick="convertABOCtoIRL()">Convert to IRL</button>
         <div id="irlOutput" class="output"></div>
       </div>
@@ -96,45 +96,62 @@
     const ABOC_EPOCH = { year: 282, month: 5, day: 22, hour: 0, minute: 0, second: 0 };
     const IRL_HOURS_PER_ABOC_DAY = 2;
     const IRL_DAYS_PER_ABOC_YEAR = 30;
+    const ABOC_MONTHS_PER_YEAR = 12;
     const ABOC_DAYS_PER_YEAR = 360;
     const ABOC_DAYS_PER_MONTH = 30;
-    const SECS_PER_ABOC_DAY = 86400;
+    const ABOC_HOURS_PER_DAY = 24;
     const MS_PER_IRL_HOUR = 3600000;
     const MS_PER_ABOC_DAY_IRL = IRL_HOURS_PER_ABOC_DAY * MS_PER_IRL_HOUR;
+    const SECS_PER_ABOC_DAY = ABOC_HOURS_PER_DAY * 3600;
 
     const irlEpoch = new Date(IRL_EPOCH_ISO);
 
     function abocEpochInDays() {
-      const { year, month, day, hour, minute, second } = ABOC_EPOCH;
-      return year * 360 + (month - 1) * 30 + (day - 1) + ((hour * 3600 + minute * 60 + second) / SECS_PER_ABOC_DAY);
+      const daysFromYears = ABOC_EPOCH.year * ABOC_DAYS_PER_YEAR;
+      const daysFromMonths = (ABOC_EPOCH.month - 1) * ABOC_DAYS_PER_MONTH;
+      const daysFromDays = (ABOC_EPOCH.day - 1);
+      const secondsInDay = (ABOC_EPOCH.hour * 3600) + (ABOC_EPOCH.minute * 60) + ABOC_EPOCH.second;
+      const frac = secondsInDay / SECS_PER_ABOC_DAY;
+      return daysFromYears + daysFromMonths + daysFromDays + frac;
     }
 
-    function abocFromTotalDays(days) {
-      const year = Math.floor(days / 360);
-      days %= 360;
-      const month = Math.floor(days / 30);
-      days %= 30;
-      const day = Math.floor(days) + 1;
-      const seconds = (days % 1) * SECS_PER_ABOC_DAY;
-      const hour = Math.floor(seconds / 3600);
-      const minute = Math.floor((seconds % 3600) / 60);
-      const second = Math.floor(seconds % 60);
+    function getOrdinal(n) {
+      const s = ["th", "st", "nd", "rd"], v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    }
+
+    function abocFromTotalDays(totalDays) {
+      const year = Math.floor(totalDays / ABOC_DAYS_PER_YEAR);
+      let leftover = totalDays - (year * ABOC_DAYS_PER_YEAR);
+      const month = Math.floor(leftover / ABOC_DAYS_PER_MONTH);
+      leftover -= month * ABOC_DAYS_PER_MONTH;
+      const day = Math.floor(leftover) + 1;
+      const dayFrac = leftover - Math.floor(leftover);
+      const totalSeconds = dayFrac * SECS_PER_ABOC_DAY;
+      const hour = Math.floor(totalSeconds / 3600);
+      const minute = Math.floor((totalSeconds % 3600) / 60);
+      const second = Math.floor(totalSeconds % 60);
       return { year, month: month + 1, day, hour, minute, second };
     }
 
-    function getOrdinalSuffix(n) {
-      return n % 10 === 1 && n % 100 !== 11 ? 'st' :
-             n % 10 === 2 && n % 100 !== 12 ? 'nd' :
-             n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th';
+    function pad(n, len=2) { return String(n).padStart(len, '0'); }
+    function fmtAboc(dt) {
+      return `${dt.year}-${pad(dt.month)}-${pad(dt.day)} ${pad(dt.hour)}:${pad(dt.minute)}:${pad(dt.second)} ABOC`;
     }
-
-    function formatABOCDateFancy(dt) {
-      return `${dt.day}${getOrdinalSuffix(dt.day)} Day of the ${dt.month}${getOrdinalSuffix(dt.month)} Moon, ${dt.year} AC`;
+    function fmtAbocFancy(dt) {
+      return `${getOrdinal(dt.day)} Day of the ${getOrdinal(dt.month)} Moon, ${dt.year} AC`;
     }
-
     function fmtIRL(dt) {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      return dt.toLocaleString() + ` (${tz})`;
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local';
+      return dt.toLocaleString(undefined, { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' }) + ` (${tz})`;
+    }
+    function fmtElapsed(ms) {
+      const s = Math.floor(ms / 1000);
+      const d = Math.floor(s / 86400);
+      const h = Math.floor((s % 86400) / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const ss = s % 60;
+      return `${d}d ${pad(h)}h:${pad(m)}m:${pad(ss)}s`;
     }
 
     const epochDaysBase = abocEpochInDays();
@@ -145,10 +162,11 @@
       const abocDaysElapsed = elapsedMs / MS_PER_ABOC_DAY_IRL;
       const totalAbocDays = epochDaysBase + abocDaysElapsed;
       const aboc = abocFromTotalDays(totalAbocDays);
-      document.getElementById('abocDate').textContent = `${aboc.year}-${String(aboc.month).padStart(2, '0')}-${String(aboc.day).padStart(2, '0')}`;
+
+      document.getElementById('abocDate').textContent = fmtAbocFancy(aboc);
       document.getElementById('irlNow').textContent = fmtIRL(now);
-      document.getElementById('irlElapsed').textContent = `${Math.floor(elapsedMs / 86400000)}d`;
-      document.getElementById('epochInfo').textContent = `${IRL_EPOCH_ISO} → ${ABOC_EPOCH.year}-${String(ABOC_EPOCH.month).padStart(2, '0')}-${String(ABOC_EPOCH.day).padStart(2, '0')}`;
+      document.getElementById('irlElapsed').textContent = fmtElapsed(Math.max(0, elapsedMs));
+      document.getElementById('epochInfo').textContent = `${IRL_EPOCH_ISO} → ${ABOC_EPOCH.year}-${pad(ABOC_EPOCH.month)}-${pad(ABOC_EPOCH.day)} ${pad(ABOC_EPOCH.hour)}:${pad(ABOC_EPOCH.minute)}:${pad(ABOC_EPOCH.second)} ABOC`;
     }
 
     function convertIRLtoABOC() {
@@ -159,22 +177,31 @@
       const abocDaysElapsed = elapsedMs / MS_PER_ABOC_DAY_IRL;
       const totalAbocDays = epochDaysBase + abocDaysElapsed;
       const aboc = abocFromTotalDays(totalAbocDays);
-      document.getElementById("abocOutput").textContent = formatABOCDateFancy(aboc);
+      document.getElementById("abocOutput").textContent = fmtAbocFancy(aboc);
     }
 
     function convertABOCtoIRL() {
-      const input = document.getElementById("abocInput").value.trim();
-      const [y, m, d] = input.split("-").map(Number);
-      if (!y || !m || !d) return;
-      const abocDays = y * 360 + (m - 1) * 30 + (d - 1);
+      const input = document.getElementById("abocInput").value;
+      const [datePart, timePart] = input.split(" ");
+      if (!datePart || !timePart) return;
+
+      const [y, m, d] = datePart.split("-").map(Number);
+      const [h, min, s] = timePart.split(":").map(Number);
+      const abocDays =
+        y * ABOC_DAYS_PER_YEAR +
+        (m - 1) * ABOC_DAYS_PER_MONTH +
+        (d - 1) +
+        ((h * 3600 + min * 60 + s) / SECS_PER_ABOC_DAY);
+
       const abocDaysSinceEpoch = abocDays - epochDaysBase;
       const msSinceEpoch = abocDaysSinceEpoch * MS_PER_ABOC_DAY_IRL;
       const irl = new Date(irlEpoch.getTime() + msSinceEpoch);
+
       document.getElementById("irlOutput").textContent = fmtIRL(irl);
     }
 
     tick();
-    setInterval(tick, 500);
+    setInterval(tick, 250);
   </script>
 </body>
 </html>

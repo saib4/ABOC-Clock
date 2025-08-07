@@ -1,13 +1,3 @@
-Here is the **complete HTML code** that includes both:
-
-1. ✅ The **original ABOC Live Clock** at the top
-2. 🔁 The **new 2-way IRL ↔ ABOC date converter** interface at the bottom
-
----
-
-### ✅ Copy-paste the **full code below** into your `.html` file:
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -90,7 +80,7 @@ Here is the **complete HTML code** that includes both:
 
       <div>
         <label>Convert ABOC Date to IRL:</label>
-        <input type="text" id="abocInput" placeholder="YYYY-MM-DD HH:mm:ss" />
+        <input type="text" id="abocInput" placeholder="YYYY-MM-DD or YYYY-MM-DD HH:mm:ss" />
         <button onclick="convertABOCtoIRL()">Convert to IRL</button>
         <div id="irlOutput" class="output"></div>
       </div>
@@ -144,8 +134,7 @@ Here is the **complete HTML code** that includes both:
       return `${dt.year}-${pad(dt.month)}-${pad(dt.day)} ${pad(dt.hour)}:${pad(dt.minute)}:${pad(dt.second)} ABOC`;
     }
     function fmtIRL(dt) {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local';
-      return dt.toLocaleString(undefined, { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' }) + ` (${tz})`;
+      return dt.toLocaleDateString(undefined, { year:'numeric', month:'2-digit', day:'2-digit' });
     }
     function fmtElapsed(ms) {
       const s = Math.floor(ms / 1000);
@@ -166,7 +155,7 @@ Here is the **complete HTML code** that includes both:
       const aboc = abocFromTotalDays(totalAbocDays);
 
       document.getElementById('abocDate').textContent = fmtAboc(aboc);
-      document.getElementById('irlNow').textContent = fmtIRL(now);
+      document.getElementById('irlNow').textContent = now.toLocaleString();
       document.getElementById('irlElapsed').textContent = fmtElapsed(Math.max(0, elapsedMs));
       document.getElementById('epochInfo').textContent = `${IRL_EPOCH_ISO} → ${ABOC_EPOCH.year}-${pad(ABOC_EPOCH.month)}-${pad(ABOC_EPOCH.day)} ${pad(ABOC_EPOCH.hour)}:${pad(ABOC_EPOCH.minute)}:${pad(ABOC_EPOCH.second)} ABOC`;
     }
@@ -183,12 +172,15 @@ Here is the **complete HTML code** that includes both:
     }
 
     function convertABOCtoIRL() {
-      const input = document.getElementById("abocInput").value;
-      const [datePart, timePart] = input.split(" ");
-      if (!datePart || !timePart) return;
+      const input = document.getElementById("abocInput").value.trim();
+      if (!input) return;
 
+      const [datePart, timePart = "00:00:00"] = input.split(" ");
       const [y, m, d] = datePart.split("-").map(Number);
-      const [h, min, s] = timePart.split(":").map(Number);
+      const [h = 0, min = 0, s = 0] = timePart.split(":").map(Number);
+
+      if (!y || !m || !d) return;
+
       const abocDays =
         y * ABOC_DAYS_PER_YEAR +
         (m - 1) * ABOC_DAYS_PER_MONTH +
@@ -207,8 +199,3 @@ Here is the **complete HTML code** that includes both:
   </script>
 </body>
 </html>
-```
-
----
-
-Let me know if you want this turned into a `.zip`, hosted live, or with dropdowns for easier use.

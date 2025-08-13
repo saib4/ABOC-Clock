@@ -5,12 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ABOC Live Clock</title>
   <style>
-    :root { --bg:#0b1020; --fg:#e7ecff; --muted:#9aa3c7; --card:#11183a; }
-    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif; background: var(--bg); color: var(--fg); }
+    :root {
+      --bg:#0b1020;
+      --fg:#e7ecff;
+      --muted:#9aa3c7;
+      --card:rgba(17,24,58,0.82);
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+      color: var(--fg);
+      background: transparent;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Background image + dark overlay */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(6,10,24,0.65), rgba(6,10,24,0.8)),
+        url("7d8552bd37eddd323a08267944020982.png") center/cover no-repeat;
+      z-index: -1;
+      filter: saturate(.95) contrast(1.05);
+    }
+
     .wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px 64px; }
     h1 { margin: 0 0 12px; font-size: 28px; font-weight: 700; letter-spacing: .3px; }
     .desc { color: var(--muted); margin-bottom: 24px; }
-    .card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,.25); }
+    .card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 10px 24px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.04) inset; }
     .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
     .big { font-size: clamp(28px, 5vw, 48px); font-weight: 800; letter-spacing: .5px; }
     .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .12em; margin-bottom: 6px; }
@@ -20,7 +47,7 @@
     .cfg { margin-top: 18px; font-size: 12px; color: var(--muted); }
     .foot { margin-top: 28px; color: var(--muted); font-size: 12px; }
 
-    .converter { background: var(--card); border-radius: 16px; padding: 20px; margin-top: 40px; }
+    .converter { background: var(--card); border-radius: 16px; padding: 20px; margin-top: 40px; box-shadow: 0 10px 24px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.04) inset; }
     .converter h2 { margin-top: 0; }
     .converter input { width: 100%; padding: 8px; font-size: 14px; margin-top: 4px; margin-bottom: 12px; background: #1a2347; color: white; border: 1px solid #333; border-radius: 6px; }
     .converter button { padding: 8px 12px; background: #2a3b6a; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 4px; }
@@ -58,7 +85,7 @@
         </div>
         <div>
           <div class="label">Scale</div>
-          <div class="mono">2h IRL = 1 day ABOC • 30 IRL days = 1 year ABOC (360‑day year)</div>
+          <div class="mono">2h IRL = 1 day ABOC • 30 IRL days = 1 year ABOC (360-day year)</div>
         </div>
       </div>
 
